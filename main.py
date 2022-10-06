@@ -154,9 +154,9 @@ if verificationDeployment == 'preview':
 for listItem in switchPortList:
     url = "https://" + dnacServer + "/dna/intent/api/v1/interface/" + listItem + "?deploymentMode=" + deploymentSettings
     print(url)
-    disablePorts = requests.put(url, headers=putHeaders, data=portSettings, verify=False)
-    json_object = json.loads(disablePorts.text)
+    setPorts = requests.put(url, headers=putHeaders, data=portSettings, verify=False)
+    json_object = json.loads(setPorts.text)
     print(json_object['response'])
 
-# testing
+
 
