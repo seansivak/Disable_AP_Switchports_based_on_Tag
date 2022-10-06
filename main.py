@@ -26,16 +26,16 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 from pprint import pprint
 
 # Specify the DNA Center Server
-dnacServer = "172.21.21.10"
+# dnacServer = "172.21.21.10"
 # Prompt the user for the DNA Center Server
-# dnacServer = input('Enter DNA Center Server IP Address:\n')
+dnacServer = input('Enter DNA Center Server IP Address:\n')
 # Specify the URL to create a token
 tokenURL = "https://" + dnacServer + "/dna/system/api/v1/auth/token"
 # Username and password used to create the token
-# myUserName = input('Username:\n')
-# myPassword = input('Password:\n')
-myUserName = "admin"
-myPassword = "Cisco123"
+myUserName = input('Username:\n')
+myPassword = input('Password:\n')
+# myUserName = "admin"
+# myPassword = "Cisco123"
 myUserPass = myUserName + ":" + myPassword
 # print(myUserPass)
 
@@ -157,4 +157,6 @@ for listItem in switchPortList:
     disablePorts = requests.put(url, headers=putHeaders, data=portSettings, verify=False)
     json_object = json.loads(disablePorts.text)
     print(json_object['response'])
+
+# testing
 
