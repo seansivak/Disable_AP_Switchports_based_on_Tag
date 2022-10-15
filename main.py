@@ -17,25 +17,37 @@ import time
 # time.sleep(10) pauses for 10 seconds
 # This enables encoding the username and password to receive a token from DNA Center
 import base64
+import os
 
 # Today's date
 currentDate = dt.datetime.today().strftime('%m-%d-%Y-%Hh-%Mm-%Ss')
 # Suppress Insecure Requests Warnings for self-signed certificate on DNA Center
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-# Import pretty print
-from pprint import pprint
 
 # Specify the DNA Center Server
 # dnacServer = "172.21.21.10"
 # Prompt the user for the DNA Center Server
-dnacServer = input('Enter DNA Center Server IP Address:\n')
+
+dnacServer = os.getenv("DNAC_SERVER")
+myUserName = os.getenv("DNAC_USERNAME")
+myPassword = os.getenv("DNAC_PASSWORD")
+verificationSettings = os.getenv("DNAC_VERIFICATION") ## deploy | preview
+verificationDeployment = os.getenv("DNAC_VERIFYDEPLOY") ##  enabled | disabled
+tagName = os.getenv("DNAC_TAGNAME")
+
+if myUserName is None:
+    dnacServer = input('Enter DNA Center Server IP Address:\n')
+    myUserName = input('Username:\n')
+    myPassword = input('Password:\n')
+    verificationSettings = input('Do you want to enable or disable switch ports connected to tagged APs? Type enable or disable: ')
+    verificationDeployment = input('Do you want to preview or actually deploy these settings? Type deploy or preview: ')
+    tagName = input('Enter Tag Name:\n')
+
+
+
 # Specify the URL to create a token
 tokenURL = "https://" + dnacServer + "/dna/system/api/v1/auth/token"
 # Username and password used to create the token
-myUserName = input('Username:\n')
-myPassword = input('Password:\n')
-# myUserName = "admin"
-# myPassword = "Cisco123"
 myUserPass = myUserName + ":" + myPassword
 # print(myUserPass)
 
@@ -62,9 +74,6 @@ headers = {
 }
 
 
-# Get Tag ID
-tagName = "Power Save AP"
-# tagName = input('Enter Tag Name:\n')
 url = "https://" + dnacServer + "/dna/intent/api/v1/tag?name=" + tagName
 response = requests.get(url, headers=headers, data=payload, verify=False)
 json_object = json.loads(response.text)
@@ -136,14 +145,10 @@ disablePorts = '''{ "adminStatus": "DOWN"}'''
 enablePorts = '''{ "adminStatus": "UP"}'''
 portSettings = enablePorts
 
-verificationSettings = input('Do you want to enable or disable switch ports connected to tagged APs? Type enable or disable: ')
-
 if verificationSettings == 'enable':
     portSettings = enablePorts
 if verificationSettings == 'disable':
     portSettings = disablePorts
-
-verificationDeployment = input('Do you want to preview or actually deploy these settings? Type deploy or preview: ')
 
 if verificationDeployment == 'deploy':
     deploymentSettings = "Deploy"
