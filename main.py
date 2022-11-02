@@ -123,6 +123,9 @@ for key, value in topologyDict.items():
                 if str(apInstance) == str(listItem['source']):
                     switchPortList.append(listItem['endPortID'])
                     matchesFound = matchesFound + 1
+                if str(apInstance) == str(listItem['target']):
+                    switchPortList.append(listItem['startPortID'])
+                    matchesFound = matchesFound + 1
 
 # Disable all switchports connected to APs
 putHeaders = {
