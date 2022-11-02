@@ -162,7 +162,7 @@ logging.info(f"switchPortList: {switchPortList}")
 for listItem in switchPortList:
     logging.info(f"ListItem: {listItem}")
     url = "https://" + dnacServer + "/dna/intent/api/v1/interface/" + listItem + "?deploymentMode=" + deploymentSettings
-    print(url)
+    logging.info(f"Sending put: payload={portSettings}, headers={putHeaders}")
     setPorts = requests.put(url, headers=putHeaders, data=portSettings, verify=False)
     logging.info(f"Return payload={setPorts.text}")
     json_object = json.loads(setPorts.text)
