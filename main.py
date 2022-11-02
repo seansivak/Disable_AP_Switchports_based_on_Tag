@@ -130,6 +130,7 @@ switchPortList = []
 for key, value in topologyDict.items():
     if key == 'links':
         for apInstance in apInstanceList:
+            logging.info(f"apInstance is {apInstance}")
             for listItem in value:
                 if str(apInstance) == str(listItem['source']):
                     switchPortList.append(listItem['endPortID'])
@@ -157,11 +158,13 @@ if verificationDeployment == 'deploy':
 if verificationDeployment == 'preview':
     deploymentSettings = "Preview"
 
-
+logging.info(f"switchPortList: {switchPortList}")
 for listItem in switchPortList:
+    logging.info(f"ListItem: {listItem}")
     url = "https://" + dnacServer + "/dna/intent/api/v1/interface/" + listItem + "?deploymentMode=" + deploymentSettings
     print(url)
     setPorts = requests.put(url, headers=putHeaders, data=portSettings, verify=False)
+    logging.info(f"Return payload={setPorts.text}")
     json_object = json.loads(setPorts.text)
     print(json_object['response'])
 
