@@ -18,7 +18,9 @@ import time
 # This enables encoding the username and password to receive a token from DNA Center
 import base64
 import os
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
 # Today's date
 currentDate = dt.datetime.today().strftime('%m-%d-%Y-%Hh-%Mm-%Ss')
 # Suppress Insecure Requests Warnings for self-signed certificate on DNA Center
