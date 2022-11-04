@@ -1,172 +1,160 @@
 #!/usr/bin/env python
 # Import Requests to get the webpage from DNA Center
 import requests
-# Import HTTPBasicAuth to authenticate to DNA Center
-from requests.auth import HTTPBasicAuth
 # Bypass certificate warnings
 import requests.packages.urllib3.exceptions
 from urllib3.exceptions import InsecureRequestWarning
-# Import json to return the results from the get request in a json format
-import json
-import difflib
-# This is used to write the results to a csv file.
-import csv
-# This allows the csv filename to include the timestamp
-import datetime as dt
-import time
-# time.sleep(10) pauses for 10 seconds
 # This enables encoding the username and password to receive a token from DNA Center
-import base64
 import os
 import logging
+import json
 
-logging.basicConfig(level=logging.DEBUG)
-# Today's date
-currentDate = dt.datetime.today().strftime('%m-%d-%Y-%Hh-%Mm-%Ss')
 # Suppress Insecure Requests Warnings for self-signed certificate on DNA Center
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-# Specify the DNA Center Server
-# dnacServer = "172.21.21.10"
-# Prompt the user for the DNA Center Server
 
-dnacServer = os.getenv("DNAC_SERVER")
-myUserName = os.getenv("DNAC_USERNAME")
-myPassword = os.getenv("DNAC_PASSWORD")
-verificationSettings = os.getenv("DNAC_VERIFICATION") ## deploy | preview
-verificationDeployment = os.getenv("DNAC_VERIFYDEPLOY") ##  enabled | disabled
-tagName = os.getenv("DNAC_TAGNAME")
+def pretty(json_obj):
+    return json.dumps(json_obj, indent=2)
 
-if myUserName is None:
-    dnacServer = input('Enter DNA Center Server IP Address:\n')
-    myUserName = input('Username:\n')
-    myPassword = input('Password:\n')
-    verificationSettings = input('Do you want to enable or disable switch ports connected to tagged APs? Type enable or disable: ')
-    verificationDeployment = input('Do you want to preview or actually deploy these settings? Type deploy or preview: ')
-    tagName = input('Enter Tag Name:\n')
+def main():
+    dnacServer = os.getenv("DNAC_SERVER")
+    myUserName = os.getenv("DNAC_USERNAME")
+    myPassword = os.getenv("DNAC_PASSWORD")
+    verificationSettings = os.getenv("DNAC_VERIFICATION") ## enable | disable
+    verificationDeployment = os.getenv("DNAC_VERIFYDEPLOY") ##  deploy | preview
+    tagName = os.getenv("DNAC_TAGNAME")
+    debugEnabled = os.getenv("DEBUG")
 
-
-
-# Specify the URL to create a token
-tokenURL = "https://" + dnacServer + "/dna/system/api/v1/auth/token"
-# Username and password used to create the token
-myUserPass = myUserName + ":" + myPassword
-# print(myUserPass)
-
-# Encode the username and password to submit as a header when creating the token
-encodedUserPass = str(base64.b64encode(bytes(myUserPass, "utf-8")))
-encodedLength = len(encodedUserPass) - 1
-encodedUserPass = encodedUserPass[2:encodedLength]
-encodedUserPass = "Basic " + encodedUserPass
-
-# Create the header used to create the token
-headers = {
-    'Authorization': encodedUserPass
-}
-# Create the token
-myTokenResponse = requests.post(tokenURL, headers=headers, verify=False)
-myTokenDict = myTokenResponse.json()
-# Creating a token returns a Dictionary where the attribute is Token and the value is the actual token
-myToken = myTokenDict['Token']
-
-payload = {}
-headers = {
-    'X-Auth-Token': myToken,
-    'Authorization': encodedUserPass
-}
+    if debugEnabled is None:
+        debugEnabled = False
+        debugLevel = logging.INFO
+    else:
+        debugEnabled = True
+        debugLevel = logging.DEBUG
 
 
-url = "https://" + dnacServer + "/dna/intent/api/v1/tag?name=" + tagName
-response = requests.get(url, headers=headers, data=payload, verify=False)
-json_object = json.loads(response.text)
-tagList = json_object['response']
-for i in tagList:
-    tagId = i['id']
+    logging.basicConfig(level=debugLevel)
 
-# Get Member Count based on tagId for pagination
-url = "https://" + dnacServer + "/dna/intent/api/v1/tag/" + tagId + "/member/count?memberType=networkdevice"
-response = requests.get(url, headers=headers, data=payload, verify=False)
-json_object = json.loads(response.text)
-memberCount = json_object['response']
+    if myUserName is None:
+        myUserName = input('Username:\n')
+    if dnacServer is None:
+        dnacServer = input('Enter DNA Center Server IP Address:\n')
+    if myPassword is None:
+        myPassword = input('Password:\n')
+    if verificationSettings is None:
+        verificationSettings = input('Do you want to enable or disable switch ports connected to tagged APs? Type enable or disable: ')
+    if verificationDeployment is None:
+        verificationDeployment = input('Do you want to preview or actually deploy these settings? Type deploy or preview: ')
+    if tagName is None:
+        tagName = input('Enter Tag Name:\n')
 
-offset = 1
-limit = 500
 
-deviceList = []
 
-# Get devices tagged with tagId
-while offset <= memberCount:
-    url = "https://" + dnacServer + "/dna/intent/api/v1/tag/" + tagId + "/member?memberType=networkdevice&limit=" + str(limit) + "&offset=" + str(offset)
+
+    # Specify the URL to create a token
+    tokenURL = "https://" + dnacServer + "/dna/system/api/v1/auth/token"
+
+    myTokenResponse = requests.post(tokenURL, auth=(myUserName, myPassword), verify=False)
+    myTokenDict = myTokenResponse.json()
+
+    # Creating a token returns a Dictionary where the attribute is Token and the value is the actual token
+    myToken = myTokenDict['Token']
+
+    payload = {}
+    headers = {
+        'X-Auth-Token': myToken
+    }
+
+
+    url = "https://" + dnacServer + "/dna/intent/api/v1/tag?name=" + tagName
     response = requests.get(url, headers=headers, data=payload, verify=False)
-    json_object = json.loads(response.text)
-    deviceList.extend(json_object['response'])
-    offset += limit
+    tagList = response.json()['response']
+    for i in tagList:
+        tagId = i['id']
 
-# Create an AP list from the deviceList
-apList = []
-apCount = 0
-for listItem in deviceList:
-    if listItem['family'] == "Unified AP":
-        apList.append(listItem)
-        apCount = apCount + 1
-print("AP Count = " + str(apCount))
+    # Get Member Count based on tagId for pagination
+    url = "https://" + dnacServer + "/dna/intent/api/v1/tag/" + tagId + "/member/count?memberType=networkdevice"
+    response = requests.get(url, headers=headers, data=payload, verify=False)
+    memberCount = response.json()['response']
 
-# Grab the UUIDs from all the APs
-apInstanceList = []
-apInstanceCount = 0
-for listItem in apList:
-    apInstanceList.append(listItem['instanceUuid'])
-    apInstanceCount = apInstanceCount + 1
+    offset = 1
+    limit = 500
 
-# Get the topology
-url = "https://" + dnacServer + "/dna/intent/api/v1/topology/physical-topology"
-response = requests.get(url, headers=headers, data=payload, verify=False)
-json_object = json.loads(response.text)
-topologyDict = json_object['response']
-matchesFound = 0
+    deviceList = []
 
-# Create a list of switchports connected to APs
-switchPortList = []
-for key, value in topologyDict.items():
-    if key == 'links':
-        for apInstance in apInstanceList:
-            logging.info(f"apInstance is {apInstance}")
-            for listItem in value:
-                if str(apInstance) == str(listItem['source']):
-                    switchPortList.append(listItem['endPortID'])
-                    matchesFound = matchesFound + 1
+    # Get devices tagged with tagId
+    while offset <= memberCount:
+        url = "https://" + dnacServer + "/dna/intent/api/v1/tag/" + tagId + "/member?memberType=networkdevice&limit=" + str(limit) + "&offset=" + str(offset)
+        response = requests.get(url, headers=headers, data=payload, verify=False)
+        deviceList.extend(response.json()['response'])
+        offset += limit
 
-# Disable all switchports connected to APs
-putHeaders = {
-    'X-Auth-Token': myToken,
-    'Authorization': encodedUserPass,
-    'Content-Type': "application/json",
-    'Accept': "application/json"
-}
+    # Create an AP list from the deviceList
+    apList = []
+    apCount = 0
+    for listItem in deviceList:
+        if listItem['family'] == "Unified AP":
+            apList.append(listItem)
+            apCount = apCount + 1
+    logging.info("AP Count = " + str(apCount))
 
-disablePorts = '''{ "adminStatus": "DOWN"}'''
-enablePorts = '''{ "adminStatus": "UP"}'''
-portSettings = enablePorts
+    # Grab the UUIDs from all the APs
+    apInstanceList = []
+    apInstanceCount = 0
+    for listItem in apList:
+        apInstanceList.append(listItem['instanceUuid'])
+        apInstanceCount = apInstanceCount + 1
 
-if verificationSettings == 'enable':
-    portSettings = enablePorts
-if verificationSettings == 'disable':
-    portSettings = disablePorts
+    # Get the topology
+    url = "https://" + dnacServer + "/dna/intent/api/v1/topology/physical-topology"
+    response = requests.get(url, headers=headers, data=payload, verify=False)
+    topologyDict = response.json()['response']
+    matchesFound = 0
+    logging.debug(f"Topology info: {pretty(topologyDict)}")
+    # Create a list of switchports connected to APs
+    switchPortList = []
+    for key, value in topologyDict.items():
+        if key == 'links':
+            for apInstance in apInstanceList:
+                logging.info(f"Processing AP {apInstance}")
+                for listItem in value:
+                    if str(apInstance) == str(listItem['source']):
+                        switchPortList.append(listItem['endPortID'])
+                        matchesFound = matchesFound + 1
+                        logging.debug(f"Found in source, adding AP info: {pretty(listItem)}")
+                    if str(apInstance) == str(listItem['target']):
+                        switchPortList.append(listItem['startPortID'])
+                        matchesFound = matchesFound + 1
+                        logging.debug(f"Found in target, adding AP info: {pretty(listItem)}")
 
-if verificationDeployment == 'deploy':
-    deploymentSettings = "Deploy"
-if verificationDeployment == 'preview':
-    deploymentSettings = "Preview"
 
-logging.info(f"switchPortList: {switchPortList}")
-for listItem in switchPortList:
-    logging.info(f"ListItem: {listItem}")
-    url = "https://" + dnacServer + "/dna/intent/api/v1/interface/" + listItem + "?deploymentMode=" + deploymentSettings
-    logging.info(f"Sending put: payload={portSettings}, headers={putHeaders}")
-    setPorts = requests.put(url, headers=putHeaders, data=portSettings, verify=False)
-    logging.info(f"Return payload={setPorts.text}")
-    json_object = json.loads(setPorts.text)
-    print(json_object['response'])
+    # Disable all switchports connected to APs
+    putHeaders = {
+        'X-Auth-Token': myToken,
+    }
 
+    disablePorts = { "adminStatus": "DOWN"}
+    enablePorts = { "adminStatus": "UP"}
+
+    if verificationSettings == 'enable':
+        portSettings = enablePorts
+    else:
+        portSettings = disablePorts
+
+    if verificationDeployment.lower() == 'deploy':
+        deploymentSettings = "Deploy"
+    else:
+        deploymentSettings = "Preview"
+
+    logging.debug(f"switchPortList: {switchPortList}")
+    for listItem in switchPortList:
+        params = {"deploymentMode":deploymentSettings}
+        url = f"https://{dnacServer}/dna/intent/api/v1/interface/{listItem}"
+        logging.debug(f"Sending put: payload={portSettings}, headers={putHeaders} url=*{url}* params={params}")
+        setPorts = requests.put(url, headers=putHeaders, json=portSettings, verify=False, params=params)
+        logging.info(f"Return payload={setPorts.text}")
+
+if __name__ == "__main__":
+    main()
 
 
